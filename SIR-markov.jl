@@ -25,20 +25,24 @@ end
 
 state = @acset SIR begin S=S0; I=I0; R=N-S0-I0 end
 
+# infection rules
 I = @acset SIR begin I=1 end 
 I2 = @acset SIR begin I=2 end 
 SI = @acset SIR begin S=1; I=1 end
-
 L_infect =  ACSetTransformation(I, SI; I=[1])
 R_infect = ACSetTransformation(I, I2; I=[1])
 
+# recovery rules
 R = @acset SIR begin R=1 end
 Empty = @acset SIR begin end
 L_recovery = ACSetTransformation(Empty, I)
 R_recovery = ACSetTransformation(Empty, R)
 
+
+rewrite_match(L_recovery, R_recovery, state)
+
+match = homomorphism(SI, state)
+match = homomorphisms(SI, state)
+
 match = homomorphism(R, state)
-
-homomorphism(I, state)
-
 rewrite(L_recovery, R_recovery, state)
