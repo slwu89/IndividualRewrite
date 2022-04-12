@@ -1,4 +1,3 @@
-using CombinatorialSpaces.SimplicialSets: get_edge!
 using Catlab.CategoricalAlgebra, Catlab.Graphs, Catlab.Present, Catlab.Graphics, Catlab.Theories, Catlab.Present
 using Catlab.CategoricalAlgebra.FinCats: FinCatGraphEq
 
@@ -53,5 +52,27 @@ matches = [match for match in matches]
 
 state_3 = rewrite_match(L_infect, R_infect, match_2)
 
+# type 2 --------------------------------------------------
+@present ThSIR2(FreeSchema) begin
+    State::Ob
+    Agents::Ob
+    state::Hom(Agents, State)
+end
+
+@acset_type SIR2(ThSIR2)
+
+state0 = vcat(fill.(1:3, [5,4,1])...)
+
+SIR2_state = @acset SIR2 begin State=3; Agents=10; state=state0 end
+
+I = @acset SIR2 begin Agents=1; State=3; state=2 end 
+I2 = @acset SIR2 begin Agents=2; State=3; state=[2,2] end 
+SI = @acset SIR2 begin Agents=2; State=3; state=[1,2] end
 
 
+# L_infect =  homomorphism(I, SI) # equivalent to below b/c only one morphism
+homomorphism(I, SI)
+homomorphism(I, I2)
+
+L_infect =  ACSetTransformation(I, SI; Agents=[1])
+R_infect = ACSetTransformation(I, I2)
