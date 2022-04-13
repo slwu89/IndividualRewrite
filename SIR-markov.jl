@@ -92,9 +92,10 @@ for t = 1:steps
     events = Union{Nothing, MatchedRule}[[MatchedRule(rule_inf, m) for m in infections]..., [MatchedRule(rule_rec, m) for m in recoveries]...]
     while length(events) > 0
         ev = pop!(events)
-        # apply ith event
+        # apply event
         _, kg, _, kh = rewrite_match_maps(ev.rule.L, ev.rule.R, ev.match)
-        state = codom(kh) # actual state update
+        state = codom(kh)
+        # update the remaining matches post rewrite
         for j in 1:length(events)
             events[j].match = postcompose_partial(kg, kh, events[j].match)
         end
