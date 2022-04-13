@@ -89,7 +89,7 @@ for t = 1:steps
     infections = sample_matches(infections, β/N, Δt)
     recoveries = sample_matches(recoveries, γ, Δt)
     # apply events
-    events = Union{Nothing, MatchedRule}[[MatchedRule(rule_inf, m) for m in infections]..., [MatchedRule(rule_rec, m) for m in recoveries]...]
+    events = MatchedRule[[MatchedRule(rule_inf, m) for m in infections]..., [MatchedRule(rule_rec, m) for m in recoveries]...]
     while length(events) > 0
         ev = pop!(events)
         # apply event
