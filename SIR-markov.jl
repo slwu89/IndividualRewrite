@@ -49,19 +49,6 @@ end
 
 @acset_type SIR(ThSIR)
 
-N = 1000
-I0 = 8
-S0 = N - I0
-
-Δt = 0.1
-tmax = 100
-steps = Int(tmax/Δt)
-γ = 1/10 # recovery rate
-R0 = 2.5
-β = R0 * γ # R0 for corresponding ODEs
-
-state = @acset SIR begin S=S0; I=I0; R=N-S0-I0 end
-
 # infection rules
 I = @acset SIR begin I=1 end 
 I2 = @acset SIR begin I=2 end 
@@ -77,6 +64,19 @@ R_recovery = ACSetTransformation(SIR(), R)
 # structs
 rule_inf = Rule(L_infect, R_infect)
 rule_rec = Rule(L_recovery, R_recovery)
+
+N = 500
+I0 = 10
+S0 = N - I0
+
+Δt = 0.1
+tmax = 100
+steps = Int(tmax/Δt)
+γ = 1/10 # recovery rate
+R0 = 2.5
+β = R0 * γ # R0 for corresponding ODEs
+
+state = @acset SIR begin S=S0; I=I0; R=N-S0-I0 end
 
 # simulation loop
 out = fill(-1, (steps, 3))
@@ -104,7 +104,6 @@ for t = 1:steps
     out[t, :] = [nparts(state, x) for x in [:S, :I, :R]]
 end
 
-
 plot(
     (1:steps) * Δt,
     out,
@@ -115,22 +114,22 @@ plot(
 
 
 
-# --------------------------------------------------------
-match = homomorphism(SI, state)
-match = homomorphisms(SI, state)
+# # --------------------------------------------------------
+# match = homomorphism(SI, state)
+# match = homomorphisms(SI, state)
 
-match = homomorphism(I, state)
-match = homomorphisms(I, state)
+# match = homomorphism(I, state)
+# match = homomorphisms(I, state)
 
-# rewrite_match(L_recovery, R_recovery, match[1])
+# # rewrite_match(L_recovery, R_recovery, match[1])
 
-# sample_matches(match, γ, Δt)
+# # sample_matches(match, γ, Δt)
 
-state
+# state
 
-rewrite(L_recovery, R_recovery, state)
+# rewrite(L_recovery, R_recovery, state)
 
-# not sure how to update morphisms after the first one was applied.
-nparts(state, :R)
-state = apply_matches(state,match,L_recovery,R_recovery)
-nparts(state, :R)
+# # not sure how to update morphisms after the first one was applied.
+# nparts(state, :R)
+# state = apply_matches(state,match,L_recovery,R_recovery)
+# nparts(state, :R)
