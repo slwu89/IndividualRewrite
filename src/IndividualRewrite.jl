@@ -3,6 +3,9 @@ export Rule, sim
 using Catlab.CategoricalAlgebra, Catlab.Present, Catlab.Theories
 using Random: shuffle
 
+# Data structures
+#################
+
 mutable struct Rule
   L::ACSetTransformation
   R::ACSetTransformation
@@ -14,6 +17,7 @@ mutable struct RuleCount
   r::Rule
   count::Int
 end
+
 RuleCount(r::Rule) = RuleCount(r, 0)
 
 mutable struct MatchCount
@@ -26,14 +30,13 @@ end
 MatchCount(name::Symbol, r::Rule, m::ACSetTransformation) =
   MatchCount(name, r, m, r.delay)
 
-
-function Rule(name::Symbol,L::ACSetTransformation{S},R::ACSetTransformation{S},
-              delay::Int=0) where S
-  Rule{S}(name, L,R,delay)
-end
-
-function sim(init_state::StructACSet{S}, rules::Dict{Symbol,Rule}, n::Int;
-             verbose=false) where {S}
+# Simulation
+############
+"""
+Run simulation for `n` timesteps.
+"""
+function sim(init_state::StructACSet, rules::Dict{Symbol,Rule}, n::Int;
+             verbose=false)
   rule_counts = Dict(k=>RuleCount(v) for (k,v) in collect(rules))
   matches, states = [], [init_state]
   for step_i in 1:n
