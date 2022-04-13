@@ -46,3 +46,6 @@ init = @acset SIR begin S=10; I=3; R=1 end
 # Run the simulation and visualize
 states = sim(init, rules, 50; verbose=true)
 plot_states(states)
+
+using Debugger
+Debugger.@enter sim(init, rules, 50; verbose=true)

@@ -5,24 +5,52 @@ using Distributions: Exponential, Geometric, cdf
 using Random: randsubseq
 using StatsBase: sample
 
+using Plots
+
 # Bernoulli sample of vector `m`
 function sample_matches(m, r, Δt)
     p = cdf(Exponential(), r * Δt)
     randsubseq(m, p)
 end
 
-# apply matches
-function apply_matches(state, m, L, R)
-    if length(m) > 0
-        for i = 1:length(m)
-            state = rewrite_match(L, R, m[i])
-        end
+# update matches; return nothing if invalid
+function postcompose_partial(kg::ACSetTransformation, kh::ACSetTransformation, m::ACSetTransformation)
+  d = Dict()
+  for (k,vs) in pairs(components(m))
+    vs_ = Int[]
+    for v in collect(vs)
+      kv = findfirst(==(v), collect(kg[k]))
+      if isnothing(kv)
+        return nothing
+      else
+        push!(vs_, kh[k](kv))
+      end
     end
-    return state
+    d[k] = vs_
+  end
+  return ACSetTransformation(dom(m), codom(kh); d...)
 end
 
-N = 10
-I0 = 3
+# stuff to store stuff
+struct Rule
+    L::ACSetTransformation
+    R::ACSetTransformation
+end
+
+mutable struct MatchedRule
+    rule::Rule
+    match::Union{Nothing, ACSetTransformation}
+end
+
+# schema
+@present ThSIR(FreeSchema) begin
+    (S,I,R)::Ob
+end
+
+@acset_type SIR(ThSIR)
+
+N = 1000
+I0 = 8
 S0 = N - I0
 
 Δt = 0.1
@@ -31,12 +59,6 @@ steps = Int(tmax/Δt)
 γ = 1/10 # recovery rate
 R0 = 2.5
 β = R0 * γ # R0 for corresponding ODEs
-
-@present ThSIR(FreeSchema) begin
-    (S,I,R)::Ob
-end
-
-@acset_type SIR(ThSIR)
 
 state = @acset SIR begin S=S0; I=I0; R=N-S0-I0 end
 
@@ -49,10 +71,51 @@ R_infect = ACSetTransformation(I, I2; I=[1])
 
 # recovery rules
 R = @acset SIR begin R=1 end
-Empty = @acset SIR begin end
-L_recovery = ACSetTransformation(Empty, I)
-R_recovery = ACSetTransformation(Empty, R)
+L_recovery = ACSetTransformation(SIR(), I)
+R_recovery = ACSetTransformation(SIR(), R)
 
+# structs
+rule_inf = Rule(L_infect, R_infect)
+rule_rec = Rule(L_recovery, R_recovery)
+
+# simulation loop
+out = fill(-1, (steps, 3))
+
+for t = 1:steps
+    # possible events
+    infections = homomorphisms(SI, state)
+    recoveries = homomorphisms(I, state)
+    # sample occurances
+    infections = sample_matches(infections, β/N, Δt)
+    recoveries = sample_matches(recoveries, γ, Δt)
+    # apply events
+    events = Union{Nothing, MatchedRule}[[MatchedRule(rule_inf, m) for m in infections]..., [MatchedRule(rule_rec, m) for m in recoveries]...]
+    while length(events) > 0
+        ev = pop!(events)
+        # apply ith event
+        _, kg, _, kh = rewrite_match_maps(ev.rule.L, ev.rule.R, ev.match)
+        state = codom(kh) # actual state update
+        for j in 1:length(events)
+            events[j].match = postcompose_partial(kg, kh, events[j].match)
+        end
+        events = filter((e) -> !isnothing(e.match), events)
+    end
+    # write output
+    out[t, :] = [nparts(state, x) for x in [:S, :I, :R]]
+end
+
+
+plot(
+    (1:steps) * Δt,
+    out,
+    label=["S" "I" "R"],
+    xlabel="Time",
+    ylabel="Number"
+)
+
+
+
+# --------------------------------------------------------
 match = homomorphism(SI, state)
 match = homomorphisms(SI, state)
 
