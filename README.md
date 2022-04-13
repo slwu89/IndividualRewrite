@@ -1,2 +1,2 @@
 # IndividualRewrite
-rewriting Individual,.jl using graph rewriting for rewriting
+rewriting Individual.jl using graph rewriting for rewriting
