@@ -64,3 +64,21 @@ vcat([state[collect(x[:I]), [:s, :age, :agevalue]] for x in inf_pairs]...)
 
 # apply the 1st rewrite
 state_new = rewrite_match(L_infect, R_infect, inf_pairs[1])
+
+can_pushout_complement(L_infect, inf_pairs[1]) # fails b/c false
+
+# fix ----------------------------------------------------------------------
+I2 = @acset AgeSIR{Int64} begin Agent=2; I=2; i=[1,2] end
+SI = @acset AgeSIR{Int64} begin Agent=2; I=1; S=1; s=[1]; i=[2] end
+I = @acset AgeSIR{Int64} begin Agent=2; I=1; i=[2] end
+
+L_infect = ACSetTransformation(I, SI; Agent = [1,2], I = [1])
+R_infect = ACSetTransformation(I, I2; Agent = [1,2], I = [2]) # maybe I=[1]
+
+inf_pairs = homomorphisms(SI, state)
+
+can_pushout_complement(L_infect, inf_pairs[1]) # fails b/c false
+
+is_natural(L_infect)
+is_natural(R_infect)
+state_new = rewrite_match(L_infect, R_infect, inf_pairs[1])
