@@ -45,7 +45,7 @@ set_subpart!(state, 1:N, :agevalue, ages)
 
 # infection rules
 I = @acset AgeSIR{Int64} begin Agent=1; I=1; i=1 end
-I2 = @acset AgeSIR{Int64} begin Agent=2; I=1; i=[1,1] end
+I2 = @acset AgeSIR{Int64} begin Agent=2; I=2; i=[1,2] end
 SI = @acset AgeSIR{Int64} begin Agent=2; I=1; S=1; s=[1]; i=[2] end
 
 L_infect = ACSetTransformation(I, SI; Agent = [2], I = [1])
