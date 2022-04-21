@@ -62,45 +62,5 @@ vcat([state[collect(x[:S]), [:s, :age, :agevalue]] for x in inf_pairs]...)
 # ages of I
 vcat([state[collect(x[:I]), [:s, :age, :agevalue]] for x in inf_pairs]...)
 
-# # age structure ------------------------------------------------------------
-# @present ThAgeSIR(FreeSchema) begin
-#     (S,I,R,Agent)::Ob
-#      s::Hom(S, Agent)
-#      i::Hom(I, Agent)
-#      r::Hom(R, Agent)
-
-#     Age::AttrType
-#     age::Attr(Agent, Age)
-# end
-
-# @acset_type AgeSIR(ThAgeSIR)
-
-# # setup a model...
-# sir_index = vcat(fill.(["S", "I", "R"],[5, 3, 2])...)
-# shuffle!(sir_index)
-
-# state = AgeSIR{Int64}()
-# add_parts!(state, :S, sum(sir_index .== "S"))
-# add_parts!(state, :I, sum(sir_index .== "I"))
-# add_parts!(state, :R, sum(sir_index .== "R"))
-
-# N = 10
-# add_parts!(state, :Agent, N)
-
-# set_subpart!(state, 1:nparts(state, :S), :s, findall(sir_index .== "S"))
-# set_subpart!(state, 1:nparts(state, :I), :i, findall(sir_index .== "I"))
-# set_subpart!(state, 1:nparts(state, :R), :r, findall(sir_index .== "R"))
-
-# ages = sample(1:80, N)
-# set_subpart!(state, 1:N, :age, ages)
-
-# # infection rules
-# I = @acset AgeSIR{Int64} begin Agent=1; I=1; i=1 end
-# I2 = @acset AgeSIR{Int64} begin Agent=2; I=1; i=[1,1] end
-# SI = @acset AgeSIR{Int64} begin Agent=2; I=1; S=1; s=[1]; i=[2] end
-
-# L_infect = ACSetTransformation(I, SI; Agent = [2], I = [1])
-# R_infect = ACSetTransformation(I, I2; Agent = [1], I = [1])
-
-# # find matches
-# infectives = homomorphisms(I, state)
+# apply the 1st rewrite
+state_new = rewrite_match(L_infect, R_infect, inf_pairs[1])
