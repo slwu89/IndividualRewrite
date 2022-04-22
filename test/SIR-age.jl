@@ -63,7 +63,7 @@ set_subpart!(state, 1:N, :agevalue, ages)
 
 # test infection
 # find matches
-inf_pairs = homomorphisms(SI, state) 
+inf_pairs = homomorphisms(SI, state)
 
 # check
 can_pushout_complement(L_infect, inf_pairs[2])
@@ -72,7 +72,4 @@ is_natural(R_infect)
 
 # apply the 2nd rewrite
 state_new = rewrite_match(L_infect, R_infect, inf_pairs[2])
-
-# age to ID
-[incident(state, age, [:age, :agevalue]) for age in ages]
-[incident(state_new, age, [:age, :agevalue]) for age in ages]
+getage(st::AgeSIR, x::Symbol) = st[vcat(incident(st, st[x], :age)...), :agevalue]

@@ -114,13 +114,23 @@ set_subpart!(state, 1:N, :agevalue, ages)
 out = fill(-1, (steps, 3))
 
 for t = ProgressBar(1:steps)
+    # Check things
+    sort(state[:age]) == 1:1000 || error("ages $(state[:age])")
+    sort(state[:agevalue]) == sort(ages) || error("agevals $(state[:agevalue])")
+    sir = [nparts(state, x) for x in [:S,:I,:R]]
+    sum(sir) == N || error("sir $sir")
+    map(1:N) do n
+        n_sir = [incident(state, n, x) for x in [:s,:i,:r]]
+        length(vcat(n_sir...)) == 1 || error(n)
+    end
+
     # possible events
     infections = homomorphisms(SI, state)
     recoveries = homomorphisms(I1, state)
 
     # sample infection occurances
-    age_i = vcat([state[collect(x[:S]), [:s, :age, :agevalue]] for x in infections]...)
-    age_j = vcat([state[collect(x[:I]), [:i, :age, :agevalue]] for x in infections]...)
+    age_i = [state[only(incident(state, state[only(collect(x[:S])), :s],:age)), :agevalue]  for x in infections]
+    age_j = [state[only(incident(state, state[only(collect(x[:I])), :i],:age)), :agevalue]  for x in infections]
     N_j = [N_ages[j] for j in age_j]
     C_ij = [C[i,j] for (i,j) in zip(age_i, age_j)]
     # hazard of each individual S-I possible effective infective contact occuring
@@ -138,7 +148,7 @@ for t = ProgressBar(1:steps)
         ev = pop!(queued_rewrites)
         # apply event
         _, kg, _, kh = rewrite_match_maps(ev.rule.L, ev.rule.R, ev.match)
-        state = codom(kh)
+        global state = codom(kh)
         # update the remaining matches post rewrite
         for j in 1:length(queued_rewrites)
             queued_rewrites[j].match = postcompose_partial(kg, kh, queued_rewrites[j].match)
