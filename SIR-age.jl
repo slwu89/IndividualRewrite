@@ -25,6 +25,8 @@ end
 
 @acset_type AgeSIR(ThAgeSIR, index = [:s, :i, :r, :age])
 
+getage(st::AgeSIR, x::Symbol) = st[vcat(incident(st, st[x], :age)...), :agevalue]
+
 # infection rules
 I = @acset AgeSIR{Int64} begin Agent=2; I=1; i=[2] end # need 2 agents otherwise have dangling edges
 I2 = @acset AgeSIR{Int64} begin Agent=2; I=2; i=[1,2] end
@@ -114,15 +116,15 @@ set_subpart!(state, 1:N, :agevalue, ages)
 out = fill(-1, (steps, 3))
 
 for t = ProgressBar(1:steps)
-    # Check things
-    sort(state[:age]) == 1:1000 || error("ages $(state[:age])")
-    sort(state[:agevalue]) == sort(ages) || error("agevals $(state[:agevalue])")
-    sir = [nparts(state, x) for x in [:S,:I,:R]]
-    sum(sir) == N || error("sir $sir")
-    map(1:N) do n
-        n_sir = [incident(state, n, x) for x in [:s,:i,:r]]
-        length(vcat(n_sir...)) == 1 || error(n)
-    end
+    # # Check things
+    # sort(state[:age]) == 1:1000 || error("ages $(state[:age])")
+    # sort(state[:agevalue]) == sort(ages) || error("agevals $(state[:agevalue])")
+    # sir = [nparts(state, x) for x in [:S,:I,:R]]
+    # sum(sir) == N || error("sir $sir")
+    # map(1:N) do n
+    #     n_sir = [incident(state, n, x) for x in [:s,:i,:r]]
+    #     length(vcat(n_sir...)) == 1 || error(n)
+    # end
 
     # possible events
     infections = homomorphisms(SI, state)
@@ -168,7 +170,7 @@ plot(
     ylabel="Number"
 )
 
-ever_infected_ages = vcat(state[[:i,:age,:agevalue]], state[[:r,:age,:agevalue]])
+ever_infected_ages = [getage(state, :i); getage(state, :r)]
 ever_infected_ages = [sum(ever_infected_ages .== i) for i = 1:16]
 
 bar(pop_TW, label = false, xlabel = "Age bins", ylabel = "Number")
