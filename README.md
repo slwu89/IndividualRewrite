@@ -4,14 +4,14 @@ rewriting Individual.jl using graph rewriting for rewriting, this repo will be d
 
 ## To-do
 
-    * basic SIR example (done)
-    * SIR with age structure (in progress)
-    * SIR on contact graph (to-do)
-    * SIR using event scheduling (to-do)
-    * figure out what parts of the simulation engine are generic
+* basic SIR example (done)
+* SIR with age structure (in progress)
+* SIR on contact graph (to-do)
+* SIR using event scheduling (to-do)
+* figure out what parts of the simulation engine are generic
 
 ## Wishlist
     
-    * each example done with multiple rewriting constructions (SPO,DPO,SqPO)
-    * either use Catlab to visualize or work out some pretty examples and explanation
-    * find examples of rewrite rules that require a certain construction (e.g. an SPO rule that canot be a DPO rule, or SqPO rule that cannot be SPO/DPO)
+* each example done with multiple rewriting constructions (SPO,DPO,SqPO)
+* either use Catlab to visualize or work out some pretty examples and explanation
+* find examples of rewrite rules that require a certain construction (e.g. an SPO rule that canot be a DPO rule, or SqPO rule that cannot be SPO/DPO)
