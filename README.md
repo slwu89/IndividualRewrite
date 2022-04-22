@@ -16,3 +16,4 @@ rewriting Individual.jl using graph rewriting for rewriting, this repo will be d
 * either use Catlab to visualize or work out some pretty examples and explanation
 * find examples of rewrite rules that require a certain construction (e.g. an SPO rule that canot be a DPO rule, or SqPO rule that cannot be SPO/DPO)
 * example where agents are of different types (mosquitoes and humans, or foxes and rabbits)
+* examples of migrating/transforming rules
