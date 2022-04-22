@@ -14,10 +14,10 @@ include("utils.jl")
 # age structure: fix age ------------------------------------------------------------
 @present ThAgeSIR(FreeSchema) begin
     (S,I,R,Agent,Age)::Ob
-     s::Hom(S, Agent)
-     i::Hom(I, Agent)
-     r::Hom(R, Agent)
-     age::Hom(Age, Agent)
+    s::Hom(S, Agent)
+    i::Hom(I, Agent)
+    r::Hom(R, Agent)
+    age::Hom(Age, Agent)
 
     AgeValue::AttrType
     agevalue::Attr(Age, AgeValue)
@@ -47,7 +47,7 @@ rule_rec = Rule(L_recover, R_recover)
 
 # contact matrix and parameters
 N = 1000
-I0 = 8
+I0 = 10
 S0 = N - I0
 Δt = 0.1
 tmax = 100
@@ -119,12 +119,12 @@ for t = ProgressBar(1:steps)
     recoveries = homomorphisms(I1, state)
 
     # sample infection occurances
-    age_infectee = vcat([state[collect(x[:S]), [:s, :age, :agevalue]] for x in infections]...)
-    age_infector = vcat([state[collect(x[:I]), [:i, :age, :agevalue]] for x in infections]...)
-    N_infector = [N_ages[j] for j in age_infector]
-    C_si = [C[i,j] for (i,j) in zip(age_infectee, age_infector)]
+    age_i = vcat([state[collect(x[:S]), [:s, :age, :agevalue]] for x in infections]...)
+    age_j = vcat([state[collect(x[:I]), [:i, :age, :agevalue]] for x in infections]...)
+    N_j = [N_ages[j] for j in age_j]
+    C_ij = [C[i,j] for (i,j) in zip(age_i, age_j)]
     # hazard of each individual S-I possible effective infective contact occuring
-    r = β * C_si .* (1 ./ N_infector)
+    r = β * C_ij .* (1 ./ N_j)
     infections = sample_matches(infections, r, Δt)
 
     # sample recovery occurances
@@ -157,7 +157,6 @@ plot(
     xlabel="Time",
     ylabel="Number"
 )
-
 
 ever_infected = vcat(state[:i],state[:r])
 ever_infected_ages = state[ever_infected, [:agevalue]]

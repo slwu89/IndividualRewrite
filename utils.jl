@@ -6,7 +6,7 @@ using Random: randsubseq
 using StatsBase: sample
 
 # Bernoulli sample of vector `m` (all same probability)
-function sample_matches(m, r::AbstractFloat, Δt)
+function sample_matches(m::AbstractVector{T}, r::AbstractFloat, Δt) where {T}
     p = cdf(Exponential(), r * Δt)
     randsubseq(m, p)
 end

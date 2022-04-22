@@ -22,7 +22,7 @@ end
 @acset_type AgeSIR(ThAgeSIR)
 
 # setup a model...
-sir_index = vcat(fill.(["S", "I", "R"],[5, 3, 2])...)
+sir_index = vcat(fill.(["S", "I", "R"],[3, 2, 1])...)
 shuffle!(sir_index)
 
 state = AgeSIR{Int64}()
@@ -30,7 +30,7 @@ add_parts!(state, :S, sum(sir_index .== "S"))
 add_parts!(state, :I, sum(sir_index .== "I"))
 add_parts!(state, :R, sum(sir_index .== "R"))
 
-N = 10
+N = 6
 add_parts!(state, :Agent, N)
 add_parts!(state, :Age, N)
 
@@ -59,32 +59,32 @@ A1 = @acset AgeSIR{Int64} begin Agent=1 end
 L_recover = ACSetTransformation(A1, I1; Agent = [1])
 R_recover = ACSetTransformation(A1, R1; Agent = [1])
 
-# # test recovery
-# is_natural(L_recover)
-# is_natural(R_recover)
+# test recovery
+is_natural(L_recover)
+is_natural(R_recover)
 
-# rec_ind = homomorphisms(I1, state)
-# can_pushout_complement(L_recover, rec_ind[1])
+rec_ind = homomorphisms(I1, state)
+can_pushout_complement(L_recover, rec_ind[1])
 
-# state_new = rewrite_match(L_recover, R_recover, rec_ind[1])
+state_new = rewrite_match(L_recover, R_recover, rec_ind[2])
 
-# # test infection
-# # find matches
-# inf_pairs = homomorphisms(SI, state)
+# test infection
+# find matches
+inf_pairs = homomorphisms(SI, state)
 
-# # get the ages of the S and I persons involved in each matching
+# get the ages of the S and I persons involved in each matching
 
-# # ages of S
-# vcat([state[collect(x[:S]), [:s, :age, :agevalue]] for x in inf_pairs]...)
+# ages of S
+vcat([state[collect(x[:S]), [:s, :age, :agevalue]] for x in inf_pairs]...)
 
-# # ages of I
-# vcat([state[collect(x[:I]), [:s, :age, :agevalue]] for x in inf_pairs]...)
+# ages of I
+vcat([state[collect(x[:I]), [:s, :age, :agevalue]] for x in inf_pairs]...)
 
-# # check
-# can_pushout_complement(L_infect, inf_pairs[1]) # fails b/c false
-# is_natural(L_infect)
-# is_natural(R_infect)
+# check
+can_pushout_complement(L_infect, inf_pairs[1]) # fails b/c false
+is_natural(L_infect)
+is_natural(R_infect)
 
-# # apply the 1st rewrite
-# state_new = rewrite_match(L_infect, R_infect, inf_pairs[1])
+# apply the 2nd rewrite
+state_new = rewrite_match(L_infect, R_infect, inf_pairs[2])
 
