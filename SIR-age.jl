@@ -158,8 +158,7 @@ plot(
     ylabel="Number"
 )
 
-ever_infected = vcat(state[:i],state[:r])
-ever_infected_ages = state[ever_infected, [:agevalue]]
+ever_infected_ages = vcat(state[[:i,:age,:agevalue]], state[[:r,:age,:agevalue]])
 ever_infected_ages = [sum(ever_infected_ages .== i) for i = 1:16]
 
 bar(pop_TW, label = false, xlabel = "Age bins", ylabel = "Number")

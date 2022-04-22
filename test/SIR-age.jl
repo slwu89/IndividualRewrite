@@ -76,3 +76,11 @@ state_new = rewrite_match(L_infect, R_infect, inf_pairs[2])
 # age to ID
 [incident(state, age, [:age, :agevalue]) for age in ages]
 [incident(state_new, age, [:age, :agevalue]) for age in ages]
+
+# age of S persons
+state[[:s,:age,:agevalue]]
+state_new[[:s,:age,:agevalue]]
+
+getage(st::AgeSIR, x::Symbol) = st[vcat(incident(st, st[x], :age)...), :agevalue]
+
+incident(state, state[:s], :age)
