@@ -63,7 +63,7 @@ set_subpart!(state, 1:N, :agevalue, ages)
 
 # test infection
 # find matches
-inf_pairs = homomorphisms(SI, state) 
+inf_pairs = homomorphisms(SI, state)
 
 # check
 can_pushout_complement(L_infect, inf_pairs[2])
