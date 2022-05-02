@@ -38,10 +38,10 @@ L_recover = ACSetTransformation(A1, I1; Agent = [1])
 R_recover = ACSetTransformation(A1, R1; Agent = [1])
 
 # setup a model with 6 persons
-N = 6
-sir_index = vcat(fill.(["S", "I", "R"],[3, 2, 1])...)
+N = 4
+sir_index = ["S", "S", "I", "R"]
 shuffle!(sir_index)
-ages = [50,23,51,49,16,19]
+ages = [50,23,16,19]
 
 state = AgeSIR{Int64}()
 add_parts!(state, :S, sum(sir_index .== "S"))
@@ -55,7 +55,7 @@ set_subpart!(state, 1:nparts(state, :S), :s, findall(sir_index .== "S"))
 set_subpart!(state, 1:nparts(state, :I), :i, findall(sir_index .== "I"))
 set_subpart!(state, 1:nparts(state, :R), :r, findall(sir_index .== "R"))
 
-set_subpart!(state, 1:N, :age, 1:N)
+# set_subpart!(state, 1:N, :age, 1:N)
 # set_subpart!(state, 1:N, :age, collect(reverse(1:N)))
 
 set_subpart!(state, 1:N, :agevalue, ages)
@@ -64,6 +64,13 @@ set_subpart!(state, 1:N, :agevalue, ages)
 # test infection
 # find matches
 inf_pairs = homomorphisms(SI, state)
+
+i, g = pushout_complement(L_infect, inf_pairs[1])
+
+i, g, rh, kh = rewrite_match_maps(L_infect, R_infect, inf_pairs[1])
+
+
+
 
 # check
 can_pushout_complement(L_infect, inf_pairs[2])
