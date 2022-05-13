@@ -11,7 +11,7 @@ using ProgressBars
 
 include("utils.jl")
 
-# age structure: fix age ------------------------------------------------------------
+# age structure ------------------------------------------------------------
 @present ThAgeSIR(FreeSchema) begin
     (S,I,R,Agent,Age)::Ob
     s::Hom(S, Agent)
