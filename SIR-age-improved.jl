@@ -9,60 +9,7 @@ using Plots
 using LinearAlgebra
 using ProgressBars
 
-# include("utils.jl")
-
-# Bernoulli sample of vector `m` (all same probability)
-function sample_matches(m::AbstractVector{T}, r::AbstractFloat, Δt) where {T}
-    p = cdf(Exponential(), r * Δt)
-    randsubseq(m, p)
-end
-
-# sample with varying probabilities
-function sample_matches(m::AbstractVector{T}, r::AbstractVector{R}, Δt) where {T, R <: AbstractFloat}
-    p = cdf(Exponential(), r * Δt)
-    runif = rand(length(m))
-    samp_idx = Int64[]
-    for i in 1:length(m)
-        if runif[i] < p[i]
-            push!(samp_idx, i)
-        end 
-    end
-
-    if length(samp_idx) > 0
-        return m[samp_idx]
-    else 
-        return T[]
-    end
-end
-
-# update matches; return nothing if invalid
-function postcompose_partial(kg::ACSetTransformation, kh::ACSetTransformation, m::ACSetTransformation)
-    d = Dict()
-    for (k,vs) in pairs(components(m))
-      vs_ = Int[]
-      for v in collect(vs)
-        kv = findfirst(==(v), collect(kg[k]))
-        if isnothing(kv)
-          return nothing
-        else
-          push!(vs_, kh[k](kv))
-        end
-      end
-      d[k] = vs_
-    end
-    return ACSetTransformation(dom(m), codom(kh); d...)
-  end
-  
-  # stuff to store stuff
-  struct Rule
-      L::ACSetTransformation
-      R::ACSetTransformation
-  end
-  
-  mutable struct MatchedRule
-      rule::Rule
-      match::Union{Nothing, ACSetTransformation}
-  end
+include("utils.jl")
 
 # age structure ------------------------------------------------------------
 @present ThAgeSIR(FreeSchema) begin
@@ -93,12 +40,8 @@ I1 = @acset AgeSIR{Int64} begin Agent=1; I=1; i=[1] end
 R1 = @acset AgeSIR{Int64} begin Agent=1; R=1; r=[1] end
 A1 = @acset AgeSIR{Int64} begin Agent=1 end
 
-L_recover = ACSetTransformation(A1, I1; Agent = [1])
-R_recover = ACSetTransformation(A1, R1; Agent = [1])
-
-# structs
-rule_inf = Rule(L_infect, R_infect)
-rule_rec = Rule(L_recover, R_recover)
+L_recovery = ACSetTransformation(A1, I1; Agent = [1])
+R_recovery = ACSetTransformation(A1, R1; Agent = [1])
 
 # contact matrix and parameters
 N = 1000
@@ -169,47 +112,30 @@ set_subpart!(state, 1:N, :agevalue, ages)
 out = fill(-1, (steps, 3))
 
 for t = ProgressBar(1:steps)
-    # # Check things
-    # sort(state[:age]) == 1:1000 || error("ages $(state[:age])")
-    # sort(state[:agevalue]) == sort(ages) || error("agevals $(state[:agevalue])")
-    # sir = [nparts(state, x) for x in [:S,:I,:R]]
-    # sum(sir) == N || error("sir $sir")
-    # map(1:N) do n
-    #     n_sir = [incident(state, n, x) for x in [:s,:i,:r]]
-    #     length(vcat(n_sir...)) == 1 || error(n)
-    # end
 
     # possible events
-    infections = homomorphisms(SI, state)
-    recoveries = homomorphisms(I1, state)
+    infections_m = homomorphisms(SI, state)
+    recoveries_m = homomorphisms(I1, state)
 
-    # sample infection occurances
-    age_i = [state[only(incident(state, state[only(collect(x[:S])), :s],:age)), :agevalue]  for x in infections]
-    age_j = [state[only(incident(state, state[only(collect(x[:I])), :i],:age)), :agevalue]  for x in infections]
+    # queued updates objects
+    infections = queued_updates(infections_m, L_infect, R_infect)
+    recoveries = queued_updates(recoveries_m, L_recovery, R_recovery)
+
+    # get infection firing probs
+    age_i = [state[only(incident(state, state[only(collect(x[:S])), :s],:age)), :agevalue]  for x in infections.matches]
+    age_j = [state[only(incident(state, state[only(collect(x[:I])), :i],:age)), :agevalue]  for x in infections.matches]
     N_j = [N_ages[j] for j in age_j]
     C_ij = [C[i,j] for (i,j) in zip(age_i, age_j)]
     # hazard of each individual S-I possible effective infective contact occuring
     r = β * C_ij .* (1 ./ N_j)
-    infections = sample_matches(infections, r, Δt)
+
+    sample_matches(infections, r, Δt)
 
     # sample recovery occurances
-    recoveries = sample_matches(recoveries, γ, Δt)
+    sample_matches(recoveries, γ, Δt)
 
-    # all queued rewrites
-    queued_rewrites = MatchedRule[[MatchedRule(rule_inf, m) for m in infections]..., [MatchedRule(rule_rec, m) for m in recoveries]...]
+    global state = fire_events(state, [infections, recoveries])
 
-    # apply rewrites
-    while length(queued_rewrites) > 0
-        ev = pop!(queued_rewrites)
-        # apply event
-        _, kg, _, kh = rewrite_match_maps(ev.rule.L, ev.rule.R, ev.match)
-        global state = codom(kh)
-        # update the remaining matches post rewrite
-        for j in 1:length(queued_rewrites)
-            queued_rewrites[j].match = postcompose_partial(kg, kh, queued_rewrites[j].match)
-        end
-        queued_rewrites = filter((e) -> !isnothing(e.match), queued_rewrites)
-    end
     # write output
     out[t, :] = [nparts(state, x) for x in [:S, :I, :R]]
 end

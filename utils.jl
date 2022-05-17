@@ -5,7 +5,7 @@ using Distributions: Exponential, Geometric, cdf
 using Random: randsubseq
 using StatsBase: sample
 
-# use a bit array to identify which ones are good and which are bad.
+# use a bit array to identify which ones will fire and which will not.
 struct queued_updates
   matches::Vector{ACSetTransformation{T}} where {T}
   valid::BitVector
@@ -19,10 +19,10 @@ struct queued_updates
 end
 
 # Bernoulli sample of vector `m` (all same probability)
-function sample_matches(m::AbstractVector{T}, r::AbstractFloat, Δt) where {T}
-    p = cdf(Exponential(), r * Δt)
-    randsubseq(m, p)
-end
+# function sample_matches(m::AbstractVector{T}, r::AbstractFloat, Δt) where {T}
+#     p = cdf(Exponential(), r * Δt)
+#     randsubseq(m, p)
+# end
 
 function sample_matches(m::queued_updates, r::AbstractFloat, Δt)
   p = cdf(Exponential(), r * Δt)
@@ -31,21 +31,34 @@ function sample_matches(m::queued_updates, r::AbstractFloat, Δt)
 end
 
 # sample with varying probabilities
-function sample_matches(m::AbstractVector{T}, r::AbstractVector{R}, Δt) where {T, R <: AbstractFloat}
+# function sample_matches(m::AbstractVector{T}, r::AbstractVector{R}, Δt) where {T, R <: AbstractFloat}
+#     p = cdf(Exponential(), r * Δt)
+#     runif = rand(length(m))
+#     samp_idx = Int64[]
+#     for i in 1:length(m)
+#         if runif[i] < p[i]
+#             push!(samp_idx, i)
+#         end 
+#     end
+
+#     if length(samp_idx) > 0
+#         return m[samp_idx]
+#     else 
+#         return T[]
+#     end
+# end
+
+function sample_matches(m::queued_updates, r::AbstractVector{R}, Δt) where {T, R <: AbstractFloat}
     p = cdf(Exponential(), r * Δt)
-    runif = rand(length(m))
-    samp_idx = Int64[]
-    for i in 1:length(m)
+    runif = rand(length(m.valid))
+    fire = Int64[]
+    for i in 1:length(m.valid)
         if runif[i] < p[i]
-            push!(samp_idx, i)
+            push!(fire, i)
         end 
     end
 
-    if length(samp_idx) > 0
-        return m[samp_idx]
-    else 
-        return T[]
-    end
+    m.valid[fire] .= true
 end
 
 # update matches; return nothing if invalid
@@ -66,16 +79,16 @@ function postcompose_partial(kg::ACSetTransformation, kh::ACSetTransformation, m
   return ACSetTransformation(dom(m), codom(kh); d...)
 end
 
-# stuff to store stuff
-struct Rule
-    L::ACSetTransformation
-    R::ACSetTransformation
-end
+# # stuff to store stuff
+# struct Rule
+#     L::ACSetTransformation
+#     R::ACSetTransformation
+# end
 
-mutable struct MatchedRule
-    rule::Rule
-    match::Union{Nothing, ACSetTransformation}
-end
+# mutable struct MatchedRule
+#     rule::Rule
+#     match::Union{Nothing, ACSetTransformation}
+# end
 
 # a very ugly function
 function fire_events(state::ACSet, events::Vector{queued_updates})

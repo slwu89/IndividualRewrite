@@ -7,7 +7,43 @@ using StatsBase: sample
 
 using Plots
 
-include("utils.jl")
+# include("utils.jl")
+
+# Bernoulli sample of vector `m` (all same probability)
+function sample_matches(m::AbstractVector{T}, r::AbstractFloat, Δt) where {T}
+    p = cdf(Exponential(), r * Δt)
+    randsubseq(m, p)
+end
+
+# update matches; return nothing if invalid
+function postcompose_partial(kg::ACSetTransformation, kh::ACSetTransformation, m::ACSetTransformation)
+    d = Dict()
+    for (k,vs) in pairs(components(m))
+      vs_ = Int[]
+      for v in collect(vs)
+        kv = findfirst(==(v), collect(kg[k]))
+        if isnothing(kv)
+          return nothing
+        else
+          push!(vs_, kh[k](kv))
+        end
+      end
+      d[k] = vs_
+    end
+    return ACSetTransformation(dom(m), codom(kh); d...)
+  end
+  
+  # stuff to store stuff
+  struct Rule
+      L::ACSetTransformation
+      R::ACSetTransformation
+  end
+  
+  mutable struct MatchedRule
+      rule::Rule
+      match::Union{Nothing, ACSetTransformation}
+  end
+
 
 # schema
 @present ThSIR(FreeSchema) begin
