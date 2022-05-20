@@ -10,7 +10,7 @@ using ProgressBars
 
 include("utils.jl")
 
-# Lotka-Volterra not handbags
+# Lotka-Volterra 
 @present ThLV(FreeSchema) begin
     (Rabbit,Fox)::Ob
 end
