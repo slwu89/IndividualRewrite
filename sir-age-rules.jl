@@ -1,3 +1,5 @@
+# the SIR with age-structure example but where the rules are programatically generated.
+
 using Catlab.CategoricalAlgebra, Catlab.Graphs, Catlab.Present, Catlab.Graphics, Catlab.Theories
 using Catlab.CategoricalAlgebra.FinCats: FinCatGraphEq
 using Random
@@ -25,33 +27,10 @@ end
 
 @acset_type AgeSIR(ThAgeSIR, index = [:s, :i, :r, :age])
 
-getage(st::AgeSIR, x::Symbol) = st[vcat(incident(st, st[x], :age)...), :agevalue]
+getage(st::AgeSIR, sir::Symbol) = st[vcat(incident(st, st[sir], :age)...), :agevalue]
 
-# infection rules
-I = @acset AgeSIR{Int64} begin Agent=2; I=1; i=[2] end # need 2 agents otherwise have dangling edges
-I2 = @acset AgeSIR{Int64} begin Agent=2; I=2; i=[1,2] end
-SI = @acset AgeSIR{Int64} begin Agent=2; I=1; S=1; s=[1]; i=[2] end
 
-L_infect = ACSetTransformation(I, SI; Agent = [1,2], I = [1])
-R_infect = ACSetTransformation(I, I2; Agent = [1,2], I = [2])
-
-# recovery rules
-I1 = @acset AgeSIR{Int64} begin Agent=1; I=1; i=[1] end
-R1 = @acset AgeSIR{Int64} begin Agent=1; R=1; r=[1] end
-A1 = @acset AgeSIR{Int64} begin Agent=1 end
-
-L_recovery = ACSetTransformation(A1, I1; Agent = [1])
-R_recovery = ACSetTransformation(A1, R1; Agent = [1])
-
-# contact matrix and parameters
 N = 1000
-I0 = 10
-S0 = N - I0
-Δt = 0.1
-tmax = 100
-steps = Int(tmax/Δt)
-γ = 1/10 # recovery rate
-R0 = 2.5
 
 pop_TW_actual = [1011137, 1041749, 975803, 1213008, 1502279, 1618075, 1621625, 1926961, 2032452, 1755391, 1806638, 1852580, 1684376, 1416638, 903130, 1454933]
 pop_TW = N * (pop_TW_actual / sum(pop_TW_actual))
@@ -84,73 +63,94 @@ for i = 1:16
     end
 end
 
+# parameters
+N = 1000
+I0 = 10
+S0 = N - I0
+Δt = 0.1
+tmax = 100
+steps = Int(tmax/Δt)
+γ = 1/10 # recovery rate
+R0 = 2.5
 β = R0 * γ / max(eigvals(C)...);
 
-# Setup initial conditions
-ages = vcat([fill(i, pop_TW[i]) for i in 1:16]...)
-shuffle!(ages)
 
-sir_index = vcat(fill.(["S", "I", "R"],[S0, I0, N-S0-I0])...)
-shuffle!(sir_index)
-
-state = AgeSIR{Int64}()
-add_parts!(state, :S, sum(sir_index .== "S"))
-add_parts!(state, :I, sum(sir_index .== "I"))
-add_parts!(state, :R, sum(sir_index .== "R"))
-
-add_parts!(state, :Agent, N)
-add_parts!(state, :Age, N)
-
-set_subpart!(state, 1:nparts(state, :S), :s, findall(sir_index .== "S"))
-set_subpart!(state, 1:nparts(state, :I), :i, findall(sir_index .== "I"))
-set_subpart!(state, 1:nparts(state, :R), :r, findall(sir_index .== "R"))
-
-set_subpart!(state, 1:N, :age, 1:N)
-set_subpart!(state, 1:N, :agevalue, ages)
-
-# Simulation loop
-out = fill(-1, (steps, 3))
-
-for t = ProgressBar(1:steps)
-
-    # possible events
-    infections_m = homomorphisms(SI, state)
-    recoveries_m = homomorphisms(I1, state)
-
-    # queued updates objects
-    infections = queued_updates(infections_m, L_infect, R_infect)
-    recoveries = queued_updates(recoveries_m, L_recovery, R_recovery)
-
-    # get infection firing probs
-    age_i = [state[only(incident(state, state[only(collect(x[:S])), :s],:age)), :agevalue]  for x in infections.matches]
-    age_j = [state[only(incident(state, state[only(collect(x[:I])), :i],:age)), :agevalue]  for x in infections.matches]
-    N_j = [N_ages[j] for j in age_j]
-    C_ij = [C[i,j] for (i,j) in zip(age_i, age_j)]
-    # hazard of each individual S-I possible effective infective contact occuring
-    r = β * C_ij .* (1 ./ N_j)
-
-    sample_matches(infections, r, Δt)
-
-    # sample recovery occurances
-    sample_matches(recoveries, γ, Δt)
-
-    global state = fire_events(state, [infections, recoveries])
-
-    # write output
-    out[t, :] = [nparts(state, x) for x in [:S, :I, :R]]
+struct rule
+    l::ACSetTransformation # I->L
+    r::ACSetTransformation # I->R
 end
 
-# plots
-plot(
-    (1:steps) * Δt,
-    out,
-    label=["S" "I" "R"],
-    xlabel="Time",
-    ylabel="Number"
-)
+struct scheduled_rule
+    r::rule
+    m::Vector{ACSetTransformation{T}} where {T}
+    fire::BitVector
+end
 
-ever_infected_ages = [getage(state, :i); getage(state, :r)]
-ever_infected_ages = [sum(ever_infected_ages .== i) for i = 1:16]
+function make_age_infection_prob(i,j, β, C, N_ages, Δt)
+    Cij = C[i,j]
+    Nj = N_ages[j]
+    function(sr::scheduled_rule)
+        p = cdf(Exponential(), β * Cij * (1 / Nj) * Δt)
+        willfire = randsubseq(1:length(sr.fire), p)
+        sr.fire[willfire] .= true
+    end
+end
 
-bar(pop_TW, label = false, xlabel = "Age bins", ylabel = "Number")
-bar!(ever_infected_ages, label = false)
+function find_rule_matches(rules::Vector{rule}, state::ACSet)
+    for r in rules
+
+    end
+end
+
+
+# infection rules
+N_age = size(C)[1]
+
+infection_rules = Vector{rule}(undef, N_age^2 + 1)
+infection_probability = Vector{Function}(undef, N_age^2 + 1)
+
+for i in 1:16 # infectee
+    for j in 1:16 # infector
+        L = @acset AgeSIR{Int64} begin Agent=2; I=1; S=1; Age=2; agevalue=[i,j]; age=[1,2]; s=[1]; i=[2] end
+        I = @acset AgeSIR{Int64} begin Agent=2; I=1; Age=2; agevalue=[i,j]; age=[1,2]; i=[2] end
+        R = @acset AgeSIR{Int64} begin Agent=2; I=2; Age=2; agevalue=[i,j]; age=[1,2]; i=[1,2] end
+        l = ACSetTransformation(I, L; Agent = [1,2], I = [1], Age = [1,2])
+        r = ACSetTransformation(I, R; Agent = [1,2], I = [2], Age = [1,2])
+        infection_rules[(i-1)*16+j] = rule(l, r)
+        infection_probability[(i-1)*16+j] = make_age_infection_prob(i, j, β, C, N_ages, Δt)
+    end
+end
+
+# recovery rule
+L = @acset AgeSIR{Int64} begin Agent=1; I=1; i=[1] end
+I = @acset AgeSIR{Int64} begin Agent=1 end
+R = @acset AgeSIR{Int64} begin Agent=1; R=1; r=[1] end
+
+l = ACSetTransformation(I, L; Agent = [1])
+r = ACSetTransformation(I, R; Agent = [1])
+
+infection_rules[257] = rule(l, r)
+infection_probability[257] = function(sr::scheduled_rule)
+    p = cdf(Exponential(), γ * Δt)
+    willfire = randsubseq(1:length(sr.fire), p)
+    sr.fire[willfire] .= true 
+end
+
+
+# i = 6
+# j = 10
+
+# L = @acset AgeSIR{Int64} begin Agent=2; I=1; S=1; Age=2; agevalue=[i,j]; age=[1,2]; s=[1]; i=[2] end
+# I = @acset AgeSIR{Int64} begin Agent=2; I=1; Age=2; agevalue=[i,j]; age=[1,2]; i=[2] end
+# R = @acset AgeSIR{Int64} begin Agent=2; I=2; Age=2; agevalue=[i,j]; age=[1,2]; i=[1,2] end
+
+# l = ACSetTransformation(I, L; Agent = [1,2], I = [1], Age = [1,2])
+# r = ACSetTransformation(I, R; Agent = [1,2], I = [2], Age = [1,2])
+
+# test_state = @acset AgeSIR{Int64} begin Agent=2; I=1; S=1; Age=2; agevalue=[i,j]; age=[1,2]; s=[1]; i=[2] end
+
+# m = homomorphisms(L, test_state; monic = true)
+
+# test_state[incident(test_state, 2, :age), :agevalue]
+# new_state = rewrite_match(l,r,m[1])
+# new_state[incident(new_state, 2, :age), :agevalue]

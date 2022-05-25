@@ -18,37 +18,15 @@ struct queued_updates
   end
 end
 
-# Bernoulli sample of vector `m` (all same probability)
-# function sample_matches(m::AbstractVector{T}, r::AbstractFloat, Δt) where {T}
-#     p = cdf(Exponential(), r * Δt)
-#     randsubseq(m, p)
-# end
-
+# Bernoulli sample of matches in `m` (all same probability)
 function sample_matches(m::queued_updates, r::AbstractFloat, Δt)
   p = cdf(Exponential(), r * Δt)
   fire = randsubseq(1:length(m.valid), p)
   m.valid[fire] .= true # these will fire
 end
 
-# sample with varying probabilities
-# function sample_matches(m::AbstractVector{T}, r::AbstractVector{R}, Δt) where {T, R <: AbstractFloat}
-#     p = cdf(Exponential(), r * Δt)
-#     runif = rand(length(m))
-#     samp_idx = Int64[]
-#     for i in 1:length(m)
-#         if runif[i] < p[i]
-#             push!(samp_idx, i)
-#         end 
-#     end
-
-#     if length(samp_idx) > 0
-#         return m[samp_idx]
-#     else 
-#         return T[]
-#     end
-# end
-
-function sample_matches(m::queued_updates, r::AbstractVector{R}, Δt) where {T, R <: AbstractFloat}
+# Bernoulli sample of matches in `m` (unique probabilities)
+function sample_matches(m::queued_updates, r::AbstractVector{R}, Δt) where {R <: AbstractFloat}
     p = cdf(Exponential(), r * Δt)
     runif = rand(length(m.valid))
     fire = Int64[]
@@ -61,36 +39,33 @@ function sample_matches(m::queued_updates, r::AbstractVector{R}, Δt) where {T, 
     m.valid[fire] .= true
 end
 
-# update matches; return nothing if invalid
+# update matches; return nothing if invalid (is there a way to do this in a type-stable way?)
+
+"""
+Convert a match L->G to a match L->H using a partial morphism G->H, if possible.
+       L ========= L
+     m ↓           ↓ m'
+       G <-- K --> H
+"""
 function postcompose_partial(kg::ACSetTransformation, kh::ACSetTransformation, m::ACSetTransformation)
-  d = Dict()
-  for (k,vs) in pairs(components(m))
-    vs_ = Int[]
-    for v in collect(vs)
-      kv = findfirst(==(v), collect(kg[k]))
-      if isnothing(kv)
+  m′ = Dict()
+  # morphism (m) is all the functions between Obs in L -> G
+  for (m_ob, m_fn) in pairs(components(m)) # m_ob: the ob, m_fn: the function for ob(L)->ob(G)
+    m′_fn = Int[] # the new function in m′ between L -> H
+    for x in collect(m_fn) # the actual function values of m_fn
+      kx = findfirst(==(x), collect(kg[m_ob])) # find elem in K getting sent to the same thing as x
+      if isnothing(kx) # it could be that thing was deleted, in which case there is no match
         return nothing
       else
-        push!(vs_, kh[k](kv))
+        push!(m′_fn, kh[m_ob](kx)) # x now gets sent here in H 
       end
     end
-    d[k] = vs_
+    m′[m_ob] = m′_fn # put the newly constructed fn for that ob into m′
   end
-  return ACSetTransformation(dom(m), codom(kh); d...)
+  return ACSetTransformation(dom(m), codom(kh); m′...)
 end
 
-# # stuff to store stuff
-# struct Rule
-#     L::ACSetTransformation
-#     R::ACSetTransformation
-# end
-
-# mutable struct MatchedRule
-#     rule::Rule
-#     match::Union{Nothing, ACSetTransformation}
-# end
-
-# a very ugly function
+# fire all events which are scheduled to fire this time step
 function fire_events(state::ACSet, events::Vector{queued_updates})
   newstate = state
   # for each event type
