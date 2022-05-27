@@ -75,39 +75,111 @@ R0 = 2.5
 β = R0 * γ / max(eigvals(C)...);
 
 
-struct rule
+# rules are the dynamics of the model
+struct rule_span
     l::ACSetTransformation # I->L
     r::ACSetTransformation # I->R
 end
 
-struct scheduled_rule
-    r::rule
-    m::Vector{ACSetTransformation{T}} where {T}
+mutable struct rule_queue
+    r::rule_span
+    m::Vector{ACSetTransformation}
     fire::BitVector
+    function rule_queue(l::ACSetTransformation, r::ACSetTransformation) 
+        return new(rule_span(l, r), Vector{ACSetTransformation}(), BitVector())
+    end
 end
 
 function make_age_infection_prob(i,j, β, C, N_ages, Δt)
     Cij = C[i,j]
     Nj = N_ages[j]
-    function(sr::scheduled_rule)
+    function(sr::rule_queue)
         p = cdf(Exponential(), β * Cij * (1 / Nj) * Δt)
         willfire = randsubseq(1:length(sr.fire), p)
         sr.fire[willfire] .= true
     end
 end
 
-function find_rule_matches(rules::Vector{rule}, state::ACSet)
-    for r in rules
-
+function find_rule_matches(rules::Vector{rule_queue}, state::ACSet)
+    for rule in rules
+        rule.m = homomorphisms(codom(rule.r.l), state; monic = true)
+        rule.fire = falses(length(rule.m))
     end
 end
 
+# apply rule matches
+function fire_events(state::ACSet, events::Vector{rule_queue})
+    newstate = state
+    # for each event type
+    for i in 1:length(events)
+      if sum(events[i].fire) == 0
+        continue
+      end
+      # for each match
+      for j in 1:length(events[i].m)
+          if events[i].fire[j] === false
+              continue
+          else
+              # apply rewrite
+              _, kg, _, kh = rewrite_match_maps(events[i].r.l, events[i].r.r, events[i].m[j])
+              newstate = codom(kh)
+              # update remaining matches post rewrite
+              if j < length(events[i].m)                    
+                  for k in j+1:length(events[i].m)
+                  # if the event wasn't going to happen anyway, continue
+                  if events[i].fire[k] === false
+                      continue
+                  else 
+                      m = postcompose_partial(kg, kh, events[i].m[k])
+                      if isnothing(m)
+                          events[i].fire[k] = false
+                      else
+                          events[i].m[k] = m
+                      end    
+                  end                    
+                  end
+              end
+              # update remaining matches for other event types post rewrite
+              if i < length(events)
+                  for k in i+1:length(events)
+                      for l in 1:length(events[k].m)
+                      # if the event wasn't going to happen anyway, continue
+                      if events[k].fire[l] === false
+                          continue
+                      else
+                          m = postcompose_partial(kg, kh, events[k].m[l])
+                          if isnothing(m)
+                              events[k].fire[l] = false
+                          else
+                              events[k].m[l] = m
+                          end       
+                      end                                             
+                      end
+                  end
+              end
+          end
+      end
+    end
+    return newstate
+end
+  
+
+# i=1
+# j=2
+# L = @acset AgeSIR{Int64} begin Agent=2; I=1; S=1; Age=2; agevalue=[i,j]; age=[1,2]; s=[1]; i=[2] end
+# I = @acset AgeSIR{Int64} begin Agent=2; I=1; Age=2; agevalue=[i,j]; age=[1,2]; i=[2] end
+# R = @acset AgeSIR{Int64} begin Agent=2; I=2; Age=2; agevalue=[i,j]; age=[1,2]; i=[1,2] end
+# l = ACSetTransformation(I, L; Agent = [1,2], I = [1], Age = [1,2])
+# r = ACSetTransformation(I, R; Agent = [1,2], I = [2], Age = [1,2])
+
+# x = rule_span(l, r)
+# x = rule_queue(l, r)
 
 # infection rules
 N_age = size(C)[1]
 
-infection_rules = Vector{rule}(undef, N_age^2 + 1)
-infection_probability = Vector{Function}(undef, N_age^2 + 1)
+age_sir_rules = Vector{rule_queue}(undef, N_age^2 + 1)
+age_sir_probability = Vector{Function}(undef, N_age^2 + 1)
 
 for i in 1:16 # infectee
     for j in 1:16 # infector
@@ -116,8 +188,8 @@ for i in 1:16 # infectee
         R = @acset AgeSIR{Int64} begin Agent=2; I=2; Age=2; agevalue=[i,j]; age=[1,2]; i=[1,2] end
         l = ACSetTransformation(I, L; Agent = [1,2], I = [1], Age = [1,2])
         r = ACSetTransformation(I, R; Agent = [1,2], I = [2], Age = [1,2])
-        infection_rules[(i-1)*16+j] = rule(l, r)
-        infection_probability[(i-1)*16+j] = make_age_infection_prob(i, j, β, C, N_ages, Δt)
+        age_sir_rules[(i-1)*16+j] = rule_queue(l, r)
+        age_sir_probability[(i-1)*16+j] = make_age_infection_prob(i, j, β, C, N_ages, Δt)
     end
 end
 
@@ -129,28 +201,87 @@ R = @acset AgeSIR{Int64} begin Agent=1; R=1; r=[1] end
 l = ACSetTransformation(I, L; Agent = [1])
 r = ACSetTransformation(I, R; Agent = [1])
 
-infection_rules[257] = rule(l, r)
-infection_probability[257] = function(sr::scheduled_rule)
+age_sir_rules[257] = rule_queue(l, r)
+age_sir_probability[257] = function(sr::rule_queue)
     p = cdf(Exponential(), γ * Δt)
     willfire = randsubseq(1:length(sr.fire), p)
-    sr.fire[willfire] .= true 
+    sr.fire[willfire] .= true
 end
 
+# find homomorphisms into the current world state
 
-# i = 6
-# j = 10
 
-# L = @acset AgeSIR{Int64} begin Agent=2; I=1; S=1; Age=2; agevalue=[i,j]; age=[1,2]; s=[1]; i=[2] end
-# I = @acset AgeSIR{Int64} begin Agent=2; I=1; Age=2; agevalue=[i,j]; age=[1,2]; i=[2] end
-# R = @acset AgeSIR{Int64} begin Agent=2; I=2; Age=2; agevalue=[i,j]; age=[1,2]; i=[1,2] end
 
-# l = ACSetTransformation(I, L; Agent = [1,2], I = [1], Age = [1,2])
-# r = ACSetTransformation(I, R; Agent = [1,2], I = [2], Age = [1,2])
 
-# test_state = @acset AgeSIR{Int64} begin Agent=2; I=1; S=1; Age=2; agevalue=[i,j]; age=[1,2]; s=[1]; i=[2] end
+# age_sir_rules[3].m = homomorphisms(codom(age_sir_rules[3].r.l), state; monic = true)
+# age_sir_rules[3].fire = trues(length(age_sir_rules[3].m))
 
-# m = homomorphisms(L, test_state; monic = true)
+# new_state = fire_events(age_sir_rules)
+# Debugger.@enter fire_events(age_sir_rules)
 
-# test_state[incident(test_state, 2, :age), :agevalue]
-# new_state = rewrite_match(l,r,m[1])
-# new_state[incident(new_state, 2, :age), :agevalue]
+
+# find_rule_matches(age_sir_rules, state)
+
+# for i in 1:length(age_sir_rules)
+#     age_sir_probability[i](age_sir_rules[i])
+# end
+
+
+
+# make world state
+ages = vcat([fill(i, pop_TW[i]) for i in 1:16]...)
+shuffle!(ages)
+
+sir_index = vcat(fill.(["S", "I", "R"],[S0, I0, N-S0-I0])...)
+shuffle!(sir_index)
+
+state = AgeSIR{Int64}()
+add_parts!(state, :S, sum(sir_index .== "S"))
+add_parts!(state, :I, sum(sir_index .== "I"))
+add_parts!(state, :R, sum(sir_index .== "R"))
+
+add_parts!(state, :Agent, N)
+add_parts!(state, :Age, N)
+
+set_subpart!(state, 1:nparts(state, :S), :s, findall(sir_index .== "S"))
+set_subpart!(state, 1:nparts(state, :I), :i, findall(sir_index .== "I"))
+set_subpart!(state, 1:nparts(state, :R), :r, findall(sir_index .== "R"))
+
+set_subpart!(state, 1:N, :age, 1:N)
+set_subpart!(state, 1:N, :agevalue, ages)
+
+#  --------------------------------------------------------------------------------
+
+# Simulation loop
+out = fill(-1, (steps, 3))
+
+for t = ProgressBar(1:steps)
+
+    # enabled events
+    find_rule_matches(age_sir_rules, state)
+
+    # probability sample
+    for i in 1:length(age_sir_rules)
+        age_sir_probability[i](age_sir_rules[i])
+    end
+
+    global state = fire_events(state, age_sir_rules)
+
+    # write output
+    out[t, :] = [nparts(state, x) for x in [:S, :I, :R]]
+end
+
+# plots
+plot(
+    (1:steps) * Δt,
+    out,
+    label=["S" "I" "R"],
+    xlabel="Time",
+    ylabel="Number"
+)
+
+ever_infected_ages = [getage(state, :i); getage(state, :r)]
+ever_infected_ages = [sum(ever_infected_ages .== i) for i = 1:16]
+
+bar(pop_TW, label = false, xlabel = "Age bins", ylabel = "Number")
+bar!(ever_infected_ages, label = false)
