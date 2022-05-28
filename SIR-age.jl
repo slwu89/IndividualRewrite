@@ -23,6 +23,8 @@ include("utils.jl")
     agevalue::Attr(Age, AgeValue)
 end
 
+to_graphviz(ThAgeSIR)
+
 @acset_type AgeSIR(ThAgeSIR, index = [:s, :i, :r, :age])
 
 getage(st::AgeSIR, x::Symbol) = st[vcat(incident(st, st[x], :age)...), :agevalue]
