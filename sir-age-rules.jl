@@ -126,34 +126,34 @@ function fire_events(state::ACSet, events::Vector{rule_queue})
               # update remaining matches post rewrite
               if j < length(events[i].m)                    
                   for k in j+1:length(events[i].m)
-                  # if the event wasn't going to happen anyway, continue
-                  if events[i].fire[k] === false
-                      continue
-                  else 
-                      m = postcompose_partial(kg, kh, events[i].m[k])
-                      if isnothing(m)
-                          events[i].fire[k] = false
-                      else
-                          events[i].m[k] = m
-                      end    
-                  end                    
+                    # if the event wasn't going to happen anyway, continue
+                    if events[i].fire[k] === false
+                        continue
+                    else 
+                        m = postcompose_partial(kg, kh, events[i].m[k])
+                        if isnothing(m)
+                            events[i].fire[k] = false
+                        else
+                            events[i].m[k] = m
+                        end    
+                    end                    
                   end
               end
               # update remaining matches for other event types post rewrite
               if i < length(events)
                   for k in i+1:length(events)
                       for l in 1:length(events[k].m)
-                      # if the event wasn't going to happen anyway, continue
-                      if events[k].fire[l] === false
-                          continue
-                      else
-                          m = postcompose_partial(kg, kh, events[k].m[l])
-                          if isnothing(m)
-                              events[k].fire[l] = false
-                          else
-                              events[k].m[l] = m
-                          end       
-                      end                                             
+                        # if the event wasn't going to happen anyway, continue
+                        if events[k].fire[l] === false
+                            continue
+                        else
+                            m = postcompose_partial(kg, kh, events[k].m[l])
+                            if isnothing(m)
+                                events[k].fire[l] = false
+                            else
+                                events[k].m[l] = m
+                            end       
+                        end                                             
                       end
                   end
               end

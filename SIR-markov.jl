@@ -18,16 +18,17 @@ end
 @acset_type SIR(ThSIR)
 
 # infection rules
-I = @acset SIR begin I=1 end 
-I2 = @acset SIR begin I=2 end 
-SI = @acset SIR begin S=1; I=1 end
-L_infect =  ACSetTransformation(I, SI; I=[1]) # fn from dom I to codom SI, I is the injective function mapping stuff in dom to codom
-R_infect = ACSetTransformation(I, I2; I=[1])
+inf_I = @acset SIR begin I=1 end
+inf_R = @acset SIR begin I=2 end
+inf_L = @acset SIR begin S=1; I=1 end
+inf_l =  ACSetTransformation(inf_I, inf_L; I=[1]) # fn from dom I to codom SI, I is the injective function mapping stuff in dom to codom
+inf_r = ACSetTransformation(inf_I, inf_R; I=[1])
 
 # recovery rules
-R = @acset SIR begin R=1 end
-L_recovery = ACSetTransformation(SIR(), I)
-R_recovery = ACSetTransformation(SIR(), R)
+rec_L = @acset SIR begin I=1 end
+rec_R = @acset SIR begin R=1 end
+rec_l = ACSetTransformation(SIR(), rec_L)
+rec_r = ACSetTransformation(SIR(), rec_R)
 
 # parameters
 N = 1000
@@ -48,12 +49,12 @@ out = fill(-1, (steps, 3))
 
 for t = ProgressBar(1:steps)
     # matches
-    infections_m = homomorphisms(SI, state)
-    recoveries_m = homomorphisms(I, state)
+    infections_m = homomorphisms(inf_L, state)
+    recoveries_m = homomorphisms(rec_L, state)
 
     # queued updates objects
-    infections = queued_updates(infections_m, L_infect, R_infect)
-    recoveries = queued_updates(recoveries_m, L_recovery, R_recovery)
+    infections = queued_updates(infections_m, inf_l, inf_r)
+    recoveries = queued_updates(recoveries_m, rec_l, rec_r)
 
     # sample occurances
     sample_matches(infections, β/N, Δt)

@@ -1,78 +1,111 @@
-using Catlab.CategoricalAlgebra, Catlab.Graphs, Catlab.Present, Catlab.Graphics, Catlab.Theories, Catlab.Present
+using Catlab.CategoricalAlgebra, Catlab.Graphs, Catlab.Present, Catlab.Graphics, Catlab.Theories
 using Catlab.CategoricalAlgebra.FinCats: FinCatGraphEq
 
+# schema ------------------------------------------------------------
+@present ThVirSIR(FreeSchema) begin
+    (S,I,R,Agent)::Ob
+    s::Hom(S, Agent)
+    i::Hom(I, Agent)
+    r::Hom(R, Agent)
 
-@present ThSIR(FreeSchema) begin
-    (S,I,R)::Ob
+    Virulence::AttrType
+    virulence::Attr(I, Virulence)
 end
 
-"""This code will work for any choice of 'type graph'"""
-function update_state(state::StructACSet{S}) where S  
-    rules = []
-    while !isempty(rules)
-        state = apply_rule(state, pop!(rules))  
-    end 
-end 
+to_graphviz(ThVirSIR)
 
-@acset_type SIR(ThSIR)
+@acset_type VirSIR(ThVirSIR, index = [:s, :i, :r, :virulence])
 
-# infect = Rule("name", L, R)
+state1 = @acset VirSIR{Float64} begin Agent=4; S=2; I=1; R=1; s=[1,4]; i=[3]; r=[2]; virulence=[3.5] end
+incident(state1, 4, :s) # gives 2
+state1[2, :s] # gives 4
 
-I = @acset SIR begin I=1 end 
-I2 = @acset SIR begin I=2 end 
-SI = @acset SIR begin S=1; I=1 end
-# L_infect =  homomorphism(I, SI) # equivalent to below b/c only one morphism
-L_infect =  ACSetTransformation(I, SI; I=[1])
-R_infect = ACSetTransformation(I, I2; I=[1])
+# inconsistent state
+state2 = @acset VirSIR{Float64} begin Agent=4; S=2; I=1; R=1; s=[1,2]; i=[3]; r=[2]; virulence=[3.5] end
+# person 2 is both susceptible and recovered
+incident(state2, 2, :s)
+incident(state2, 2, :r)
 
-ex_state = @acset SIR begin S=10; I=3; R=1 end
+# tests for SIR-age
+@present ThAgeSIR(FreeSchema) begin
+    (S,I,R,Agent,Age)::Ob
+    s::Hom(S, Agent)
+    i::Hom(I, Agent)
+    r::Hom(R, Agent)
+    age::Hom(Age, Agent)
 
-# rewrite(L_infect, R_infect, ex_state) # execute immediately
+    AgeValue::AttrType
+    agevalue::Attr(Age, AgeValue)
+end
 
-match = homomorphism(SI, ex_state)
+@acset_type AgeSIR(ThAgeSIR, index = [:s, :i, :r, :age])
 
+# i = 1
+# j = 2
+# L = @acset AgeSIR{Int64} begin Agent=2; I=1; S=1; Age=2; agevalue=[i,j]; age=[1,2]; s=[2]; i=[1] end
+# I = @acset AgeSIR{Int64} begin Agent=2; I=1; Age=2; agevalue=[i,j]; age=[1,2]; i=[1] end
+# R = @acset AgeSIR{Int64} begin Agent=2; I=2; Age=2; agevalue=[i,j]; age=[1,2]; i=[1,2] end
+# l = ACSetTransformation(I, L; Agent = [1,2], I = [1], Age = [1,2])
+# r = ACSetTransformation(I, R; Agent = [1,2], I = [1], Age = [1,2])
 
-matches = [match_1, match_2] # pointing to ex_state
+# G = @acset AgeSIR{Int64} begin Agent=4; S=2; I=1; R=1; Age=4; agevalue=[i,j,3,4]; age=[1,2,3,4]; s=[2,3]; i=[1]; r=[4] end
 
+# m = homomorphisms(L, G)[1]
 
-"""
-L    I    R 
-|
-G <- K -> H (updated G)
-   kg  kh 
+# i, g = pushout_complement(l, m)
 
-"""
+# C = codom(i)
 
+# rh, ch = pushout(r, i)
 
-_, kg, _, kh = rewrite_match_maps(L_infect, R_infect, match)
+# H = codom(rh)
 
-# pretend state_2 is a homomorphism from state_1 -> state_2
+# infection rules
+L = @acset AgeSIR{Int64} begin Agent=2; I=1; S=1; s=[1]; i=[2] end
+I = @acset AgeSIR{Int64} begin Agent=2; I=1; i=[2] end # need 2 agents otherwise have dangling edges
+R = @acset AgeSIR{Int64} begin Agent=2; I=2; i=[1,2] end
 
-matches = [match for match in matches]
+l = ACSetTransformation(I, L; Agent = [1,2], I = [1])
+r = ACSetTransformation(I, R; Agent = [1,2], I = [2])
 
-state_3 = rewrite_match(L_infect, R_infect, match_2)
+G = @acset AgeSIR{Int64} begin Agent=4; S=2; I=1; R=1; Age=4; agevalue=[1,2,3,4]; age=[1,2,3,4]; s=[2,3]; i=[1]; r=[4] end
 
-# # type 2 --------------------------------------------------
-# @present ThSIR2(FreeSchema) begin
-#     State::Ob
-#     Agents::Ob
-#     state::Hom(Agents, State)
-# end
+m = homomorphisms(L, G)[1]
 
-# @acset_type SIR2(ThSIR2)
+i, g = pushout_complement(l, m)
 
-# state0 = vcat(fill.(1:3, [5,4,1])...)
+ik, kg, rh, kh = rewrite_match_maps(l, r, m)
 
-# SIR2_state = @acset SIR2 begin State=3; Agents=10; state=state0 end
+# deletion 1
+# G = @acset AgeSIR{Int64} begin Agent=2 end # works because no unknown context
 
-# I = @acset SIR2 begin Agents=1; State=3; state=2 end 
-# I2 = @acset SIR2 begin Agents=2; State=3; state=[2,2] end 
-# SI = @acset SIR2 begin Agents=2; State=3; state=[1,2] end
+L = @acset AgeSIR{Int64} begin Agent=1 end
+I = AgeSIR{Int64}()
+R = AgeSIR{Int64}()
+l = ACSetTransformation(I, L)
+r = ACSetTransformation(I, R)
 
+m = homomorphisms(L, G; monic = true)
 
-# # L_infect =  homomorphism(I, SI) # equivalent to below b/c only one morphism
-# homomorphism(I, SI)
-# homomorphism(I, I2)
+ik, kg, rh, kh = rewrite_match_maps(l, r, m[1])
 
-# L_infect =  ACSetTransformation(I, SI; Agents=[1])
-# R_infect = ACSetTransformation(I, I2)
+# age and virulence
+@present ThComplexSIR(FreeSchema) begin
+    (S,I,R,Agent,Age)::Ob
+    s::Hom(S, Agent)
+    i::Hom(I, Agent)
+    r::Hom(R, Agent)
+    age::Hom(Age, Agent)
+
+    AgeValue::AttrType
+    agevalue::Attr(Age, AgeValue)
+
+    Virulence::AttrType
+    virulence::Attr(I, Virulence)
+end
+
+to_graphviz(ThComplexSIR)
+
+@acset_type ComplexSIR(ThComplexSIR, index = [:s, :i, :r, :age])
+
+state = @acset ComplexSIR{Int64, Float64} begin Agent=4; Age=4; S=2; I=1; R=1; s=[1,2]; i=[3]; r=[4]; age=[1,2,3,4]; agevalue=[15,39,42,57]; virulence=[0.32,0.13,0.95,0.37] end
