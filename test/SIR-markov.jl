@@ -12,13 +12,22 @@ end
 @acset_type SIR(ThSIR)
 
 # infection rules
-inf_I = @acset SIR begin I=1 end
-inf_R = @acset SIR begin I=2 end
-inf_L = @acset SIR begin S=1; I=1 end
-inf_l =  ACSetTransformation(inf_I, inf_L; I=[1]) # fn from dom I to codom SI, I is the injective function mapping stuff in dom to codom
-inf_r = ACSetTransformation(inf_I, inf_R; I=[1])
+inf_I = @acset SIR begin Agent=2; I=1; i=[1] end
+inf_R = @acset SIR begin Agent=2; I=2; i=[1,2] end
+inf_L = @acset SIR begin Agent=2; I=1; S=1; i=[1]; s=[2] end
+inf_l =  ACSetTransformation(inf_I, inf_L; I=[1], Agent=[1,2]) # fn from dom I to codom SI, I is the injective function mapping stuff in dom to codom
+inf_r = ACSetTransformation(inf_I, inf_R; I=[1], Agent=[1,2])
 
-# recovery rules
+sir = @acset SIR begin Agent=4; I=1; S=2; R=1; i=[1]; s=[2,3]; r=[4] end
+
+m = homomorphisms(inf_L, sir, monic = true)
+
+ik, kg = pushout_complement(inf_l, m[1])
+K = codom(ik)
+
+sir_inf = rewrite_match(inf_l, inf_r, m[1])
+
+# recovery rules 0
 rec_L = @acset SIR begin Agent=1; I=1; i=[1] end
 rec_R = @acset SIR begin Agent=1; R=1; r=[1] end
 rec_l = ACSetTransformation(SIR(), rec_L)
@@ -31,13 +40,22 @@ m = homomorphisms(rec_L, sir, monic = true)
 can_pushout_complement(rec_l, m[1])
 
 ik, kg = pushout_complement(rec_l, m[1])
+K = codom(ik)
 
-# shouldn't work
+sir_rec = rewrite_match(rec_l, rec_r, m[1])
+
+# recovery rules 1
 rec_I1 = @acset SIR begin Agent=1 end
-rec_l = ACSetTransformation(rec_I1, rec_L; Agent=[1])
+rec_l1 = ACSetTransformation(rec_I1, rec_L; Agent=[1])
+rec_r1 = ACSetTransformation(rec_I1, rec_R; Agent=[1])
 
-m = homomorphisms(rec_L, sir, monic = true)
+sir1 = @acset SIR begin Agent=3; I=2; S=1; i=[1,2]; s=[3] end
 
-can_pushout_complement(rec_l, m[1])
+m = homomorphisms(rec_L, sir1, monic = true)
 
-ik, kg = pushout_complement(rec_l, m[1])
+can_pushout_complement(rec_l1, m[1])
+
+ik, kg = pushout_complement(rec_l1, m[1])
+K1 = codom(ik)
+
+sir1_rec = rewrite_match(rec_l1, rec_r1, m[1])

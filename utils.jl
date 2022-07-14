@@ -75,47 +75,47 @@ function fire_events(state::ACSet, events::Vector{queued_updates})
     end
     # for each match
     for j in 1:length(events[i].matches)
-        if events[i].valid[j] === false
-            continue
-        else
-            # apply rewrite
-            _, kg, _, kh = rewrite_match_maps(events[i].L, events[i].R, events[i].matches[j])
-            newstate = codom(kh)
-            # update remaining matches post rewrite
-            if j < length(events[i].matches)                    
-                for k in j+1:length(events[i].matches)
-                # if the event wasn't going to happen anyway, continue
-                if events[i].valid[k] === false
-                    continue
-                else 
-                    m = postcompose_partial(kg, kh, events[i].matches[k])
-                    if isnothing(m)
-                        events[i].valid[k] = false
-                    else
-                        events[i].matches[k] = m
-                    end    
-                end                    
-                end
-            end
-            # update remaining matches for other event types post rewrite
-            if i < length(events)
-                for k in i+1:length(events)
-                    for l in 1:length(events[k].matches)
-                    # if the event wasn't going to happen anyway, continue
-                    if events[k].valid[l] === false
-                        continue
-                    else
-                        m = postcompose_partial(kg, kh, events[k].matches[l])
-                        if isnothing(m)
-                            events[k].valid[l] = false
-                        else
-                            events[k].matches[l] = m
-                        end       
-                    end                                             
-                    end
-                end
-            end
+      if events[i].valid[j] === false
+        continue
+      else
+        # apply rewrite
+        _, kg, _, kh = rewrite_match_maps(events[i].L, events[i].R, events[i].matches[j])
+        newstate = codom(kh)
+        # update remaining matches post rewrite
+        if j < length(events[i].matches)                    
+          for k in j+1:length(events[i].matches)
+            # if the event wasn't going to happen anyway, continue
+            if events[i].valid[k] === false
+              continue
+            else 
+              m = postcompose_partial(kg, kh, events[i].matches[k])
+              if isnothing(m)
+                events[i].valid[k] = false
+              else
+                events[i].matches[k] = m
+              end    
+            end                    
+          end
         end
+        # update remaining matches for other event types post rewrite
+        if i < length(events)
+          for k in i+1:length(events)
+            for l in 1:length(events[k].matches)
+              # if the event wasn't going to happen anyway, continue
+              if events[k].valid[l] === false
+                continue
+              else
+                m = postcompose_partial(kg, kh, events[k].matches[l])
+                if isnothing(m)
+                  events[k].valid[l] = false
+                else
+                  events[k].matches[l] = m
+                end       
+              end                                             
+            end
+          end
+        end
+      end
     end
   end
   return newstate
