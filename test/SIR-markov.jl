@@ -15,7 +15,7 @@ end
 inf_I = @acset SIR begin Agent=2; I=1; i=[1] end
 inf_R = @acset SIR begin Agent=2; I=2; i=[1,2] end
 inf_L = @acset SIR begin Agent=2; I=1; S=1; i=[1]; s=[2] end
-inf_l =  ACSetTransformation(inf_I, inf_L; I=[1], Agent=[1,2]) # fn from dom I to codom SI, I is the injective function mapping stuff in dom to codom
+inf_l =  ACSetTransformation(inf_I, inf_L; I=[1], Agent=[1,2])
 inf_r = ACSetTransformation(inf_I, inf_R; I=[1], Agent=[1,2])
 
 sir = @acset SIR begin Agent=4; I=1; S=2; R=1; i=[1]; s=[2,3]; r=[4] end
@@ -26,6 +26,16 @@ ik, kg = pushout_complement(inf_l, m[1])
 K = codom(ik)
 
 sir_inf = rewrite_match(inf_l, inf_r, m[1])
+
+
+
+# recovery rule
+rec_L = @acset SIR begin Agent=1; I=1; i=[1] end
+rec_R = @acset SIR begin Agent=1; R=1; r=[1] end
+rec_I = @acset SIR begin Agent=1 end
+rec_l = ACSetTransformation(rec_I, rec_L; Agent=[1])
+rec_r = ACSetTransformation(rec_I, rec_R; Agent=[1])
+
 
 # recovery rules 0
 rec_L = @acset SIR begin Agent=1; I=1; i=[1] end

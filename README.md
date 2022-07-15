@@ -4,11 +4,10 @@ rewriting Individual.jl using graph rewriting for rewriting, this repo will be d
 
 ## To-do
 
-* basic SIR example (done)
-* SIR with age structure (done)
-* SIR on contact graph (to-do)
-* SIR using event scheduling (to-do; check Kris' original code)
-* figure out what parts of the simulation engine are generic
+* SIR with birth and death
+* SIR on contact graph
+* SIR using event scheduling
+* For models where events are not conflicting (e.g. simple SIR), check if model can be run without post composing updates to udpate matches.
 
 ## Wishlist
     
